@@ -1,0 +1,41 @@
+name: API Integration Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install Newman
+        run: npm install -g newman
+
+      - name: Build solution
+        run: dotnet build ShoppingMicroServicesApp/ShoppingMicroServicesApp.sln --configuration Release
+
+      - name: Start APIs
+        run: |
+          dotnet run --project ShoppingMicroServicesApp/UsersWebAPI/UsersWebAPI.csproj --urls http://localhost:5064 &
+          dotnet run --project ShoppingMicroServicesApp/PaymentWebAPI/PaymentWebAPI.csproj --urls http://localhost:5074 &
+          dotnet run --project ShoppingMicroServicesApp/OrdersWebAPI/OrdersWebAPI.csproj --urls http://localhost:5121 &
+          sleep 20
+
+      - name: Run Newman tests
+        run: |
+          newman run postman/ECommerceIntegrationTests.postman_collection.json \
+          --environment postman/ECommerceEnvironment_updated.postman_environment.json
